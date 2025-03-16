@@ -1,0 +1,28 @@
+.onClickedBtn {
+    color: black;
+}
+
+.notClickedBtn:hover {
+    background: greenyellow;
+}
+
+.btn {
+    margin: 3px;
+}
+
+.div {
+    align-items: center;
+    margin: 3px;
+}
+
+.bi {
+    font-size: 40px;
+}
+
+body {
+    padding: 5px;
+}
+
+.hidden {
+    display: none;
+}

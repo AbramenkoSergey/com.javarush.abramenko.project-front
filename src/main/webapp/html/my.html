@@ -1,11 +1,456 @@
-<html>
+<!DOCTYPE html>
+<html lang="ru">
 <head>
     <title>RPG</title>
+    <meta charset="UTF-8">
     <script src=https://code.jquery.com/jquery-3.6.0.min.js></script>
     <link href="/css/my.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css"
+          integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://icons.getbootstrap.com/assets/font/bootstrap-icons.min.css">
 </head>
 <body>
-<h1>RPG admin panel</h1>
+<h1 style="align='center'">RPG admin panel</h1>
+<h2>Accounts list:</h2>
+<form>
+    <label for="pages">Count per page:</label>
+    <select id="pages" class="form-select">
+        <option value="3">3</option>
+        <option value="5">5</option>
+        <option value="10">10</option>
+        <option value="20">20</option>
+    </select>
+</form>
+<table id="accountListTable" class="table table-bordered">
+    <thead>
+    <tr>
+        <th id="id">#</th>
+        <th id="name">Name</th>
+        <th id="title">Title</th>
+        <th id="race">Race</th>
+        <th id="profession">Profession</th>
+        <th id="level">Level</th>
+        <th id="birthday">Birthday</th>
+        <th id="banned">Banned</th>
+        <th id="edit">Edit</th>
+        <th id="del">Delete</th>
+    </tr>
+    </thead>
+    <tbody id="bodyId">
+    <tr>
+    </tr>
+    </tbody>
+</table>
+<div id="btns" class="div btn-group">
+    <div class="div">Pages:</div>
+    <button>11</button>
+</div>
+<hr/>
+<button class="btn btn-outline-primary" id="createAccountBtn">Create new account</button>
+<form class="w-50 p-3 border hidden" id="createForm">
+    <div class="form-group row">
+        <label for="nName" class="col-sm-2 col-form-label">Name:</label>
+        <div class="col-sm-10">
+            <input type="text" class="form-control" id="nName" minlength="1" maxlength="12">
+        </div>
+    </div>
+    <div class="form-group row">
+        <label for="nTitle" class="col-sm-2 col-form-label">Title:</label>
+        <div class="col-sm-10">
+            <input type="text" class="form-control" id="nTitle" minlength="1" maxlength="30">
+        </div>
+    </div>
+    <div class="form-group row">
+        <label for="nRace" class="col-sm-2 col-form-label">Race:</label>
+        <div class="col-sm-10">
+            <select class="form-control" id="nRace">
+            </select>
+        </div>
+    </div>
+    <div class="form-group row">
+        <label for="nProfession" class="col-sm-2 col-form-label">Profession:</label>
+        <div class="col-sm-10">
+            <select class="form-control" id="nProfession">
+            </select>
+        </div>
+    </div>
+    <div class="form-group row">
+        <label for="nLevel" class="col-sm-2 col-form-label">Level:</label>
+        <div class="col-sm-10">
+            <input type="number" class="form-control" id="nLevel" min="0" max="200" value="0">
+        </div>
+    </div>
+    <div class="form-group row">
+        <label for="nBirthday" class="col-sm-2 col-form-label">Birthday:</label>
+        <div class="col-sm-10">
+            <input type="date" class="form-control" id="nBirthday">
+        </div>
+    </div>
+    <div class="form-group row">
+        <label for="nBanned" class="col-sm-2 col-form-label">Banned:</label>
+        <div class="col-sm-10">
+            <select class="form-control" id="nBanned"></select>
+        </div>
+    </div>
+    <div class="form-group row">
+        <button type="button" class="btn btn-outline-primary btn-block" id="saveBtn">Save</button>
+    </div>
+</form>
+<script charset="utf-8">
+    let $j = jQuery.noConflict();
+    ///Текущая нажатая кнопка в пэйджинге
+    let currentBtn;
+    const races = ['HUMAN', 'DWARF', 'ELF', 'GIANT', 'ORC', 'TROLL', 'HOBBIT'];
+    const professions = ['WARRIOR', 'ROGUE', 'SORCERER', 'CLERIC', 'PALADIN', 'NAZGUL', 'WARLOCK', 'DRUID'];
+    const ban = ['false', 'true'];
 
+    //Получение данных о игроках с сервера и заливка данных в таблицу
+    async function getAndFillDataForTable(pageNumber) {
+        //Очищаем таблицу (тело)
+        let tBodyForClear = document.getElementById("bodyId");
+        while (tBodyForClear.firstChild) {
+            tBodyForClear.removeChild(tBodyForClear.firstChild);
+        }
+
+        const accountsCount = await getPlayersCount();
+        const select = document.getElementById('pages');
+        const rowsCount = parseInt(select.value, 10);
+        if (pageNumber == 0) {
+            countingPages(accountsCount, rowsCount);
+        }
+
+        const dataPlayers = await $j.get('/rest/players?pageNumber='+pageNumber+'&pageSize='+rowsCount);
+        var table = document.getElementById("accountListTable");
+        dataPlayers.forEach(d => {
+            const r = document.createElement('tr');
+            //заливаем полученные данные в таблицу
+            table.querySelectorAll('th').forEach(header => {
+                    const cell = r.insertCell();
+                    const propertyName = header.getAttribute('id');
+                    const value = d[propertyName];
+                    cell.textContent = value;
+                    if (propertyName === 'birthday') {
+                        let date = new Date(value);
+                        date = date.toLocaleDateString("en-US");
+                        cell.textContent = date;
+                    }
+                    if (propertyName === 'edit') {
+                        cell.width = 41;
+                        cell.height = 41;
+                        cell.align = 'center';
+                        cell.innerHTML = '<i class="bi bi-pencil"></i>';
+                        cell.addEventListener('click', editAccount);
+                    }
+                    if (propertyName === 'del') {
+                        cell.width = 41;
+                        cell.height = 41;
+                        cell.align = 'center';
+                        cell.innerHTML = '<i class="bi bi-trash"></i>';
+                        cell.addEventListener('click', deleteAccount);
+                    }
+                }
+            );
+            table.querySelector('tbody').insertAdjacentElement('beforeend', r);
+        });
+    };
+
+    getAndFillDataForTable(0);
+
+    async function getPlayersCount() {
+        return await $j.get('/rest/players/count');
+    };
+
+    //Функция формирования и отображения кнопок страниц
+    function countingPages(allCount, countPerPage, del) {
+        var div = document.getElementById("btns");
+        div.innerHTML = '<div class="div">Pages:</div>';
+        if (del >= (allCount/countPerPage)) {
+            del = del-1;
+        }
+        for (let i = 0; i < allCount/countPerPage; i++) {
+            const button = document.createElement('button');
+            if (i === 0 && del === undefined) {
+                button.className = 'btn btn-primary';
+                currentBtn = button;
+            } else {
+                if (i === del) {
+                    button.className = 'btn btn-primary';
+                    currentBtn = button;
+                } else {
+                    button.className = 'btn btn-secondary'
+                }
+            }
+            button.textContent = i+1;
+            button.id = 'id'+(i+1);
+            button.addEventListener('click', () => {handleBtnChange(button.id);});
+            div.insertAdjacentElement('beforeend', button);
+        }
+    };
+
+    // Функция для обработки выбора в выпадающем списке
+    async function handlePageChange() {
+        const select = document.getElementById('pages');
+        const selectedValue = parseInt(select.value, 10);
+        const playersCount = await getPlayersCount();
+        countingPages(playersCount, selectedValue);
+        getAndFillDataForTable(0);
+    }
+
+    // Добавляем обработчик события change в выпадающем списке
+    document.getElementById('pages').addEventListener('change', handlePageChange);
+
+    // Функция для обработки выбора в кнопках
+    function handleBtnChange(id) {
+        const select = document.getElementById(id);
+        currentBtn.className = 'btn btn-secondary';
+        select.className = 'btn btn-primary';
+        currentBtn = select;
+        const selectedValue = parseInt(select.textContent, 10);
+        getAndFillDataForTable(selectedValue-1);
+    }
+
+    async function deleteAccount(event) {
+        const clicked = event.target;
+        if (clicked.tagName === 'I') {
+            const clickedRow = clicked.closest('td').closest('tr');
+            const idPlayer = clickedRow.cells[0].textContent;
+            try {
+                // Выполняем асинхронный запрос на удаление
+                await $j.ajax({
+                    url: '/rest/players/' + idPlayer,
+                    type: 'DELETE',
+                    success: async function(response) {
+                        console.log('Удален игрок с ID:', idPlayer);
+                        const select = document.getElementById('pages');
+                        const selectedValue = parseInt(select.value, 10);
+                        const playersCount = await getPlayersCount();
+                        countingPages(playersCount, selectedValue, parseInt(currentBtn.textContent, 10)-1);
+                        getAndFillDataForTable(parseInt(currentBtn.textContent, 10)-1); // Обновляем таблицу
+                    },
+                    error: function(error) {
+                        console.error('Ошибка при удалении игрока:', error);
+                    }
+                });
+            } catch (error) {
+                console.error('Ошибка при удаления игрока:', error);
+            }
+        }
+    }
+
+    async function editAccount(event) {
+        let player = {
+            name: null,
+            title: null,
+            race: null,
+            profession: null,
+            banned: null
+        };
+        const clicked = event.target;
+        if (clicked.tagName === 'I') {
+            const clickedRow = clicked.closest('td').closest('tr');
+            let clickedCell = clickedRow.cells[8];
+            let delCell = clickedRow.cells[9];
+
+            if (clicked.className === "bi bi-pencil") {
+                clickedCell.innerHTML = '<i class="bi bi-floppy"></i>';
+                delCell.className = 'hidden';
+                makeCellEditableText(clickedRow.cells[1]);
+                makeCellEditableText(clickedRow.cells[2]);
+                makeListFromArray(clickedRow.cells[3], races)
+                makeListFromArray(clickedRow.cells[4], professions)
+                makeListFromArray(clickedRow.cells[7], ban)
+            } else {
+                clickedCell.innerHTML = '<i class="bi bi-pencil"></i>';
+                delCell.className = '';
+                const tbl = document.getElementById('accountListTable');
+                const inputs = tbl.querySelectorAll('input');
+                inputs.forEach(input => {
+                    const cellClosest = input.closest('td');
+                    cellClosest.textContent = input.value;
+                });
+                const selects = tbl.querySelectorAll('select');
+                selects.forEach(select => {
+                    const cellClosest = select.closest('td');
+                    cellClosest.textContent = select.value;
+                });
+                player.name = clickedRow.cells[1].textContent;
+                player.title = clickedRow.cells[2].textContent;
+                player.race = clickedRow.cells[3].textContent;
+                player.profession = clickedRow.cells[4].textContent;
+                player.banned = clickedRow.cells[7].textContent;
+                let playerJson = JSON.stringify(player);
+                try {
+                    await $j.ajax({
+                        url: '/rest/players/'+clickedRow.cells[0].textContent, // URL для обновления ячейки
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify(player),
+                        success: function(response) {
+                            console.log('Изменения сохранены:', response);
+                        },
+                        error: function(error) {
+                            console.error('Ошибка при сохранении:', error);
+                        }
+                    });
+                    getAndFillDataForTable(parseInt(currentBtn.textContent, 10)-1);
+                } catch (error) {
+                    console.error('Ошибка:', error);
+                }
+            }
+        }
+    }
+
+    function makeCellEditableText(cell) {
+        const originalText = cell.textContent;
+        const input = document.createElement('input');
+        input.id = cell;
+        input.type = 'text';
+        input.value = originalText;
+        cell.textContent = '';
+        cell.appendChild(input);
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                //cell.textContent = input.value; // Сохраняем новое значение
+            }
+        });
+    }
+
+    function makeListFromArray(cell, array) {
+        const originalText = cell.textContent;
+        const select = document.createElement('select');
+        array.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item; // Значение опции
+            option.textContent = item; // Текст опции
+
+            // Если текущий текст ячейки совпадает с элементом массива, выбираем эту опцию
+            if (item === originalText) {
+                option.selected = true;
+            }
+
+            select.appendChild(option); // Добавляем опцию в <select>
+        });
+
+        // Очищаем ячейку и добавляем в нее выпадающий список
+        cell.textContent = '';
+        cell.appendChild(select);
+    }
+
+    (() => {
+        let select = document.getElementById('nRace');
+        races.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item; // Значение опции
+            option.textContent = item; // Текст опции
+            select.appendChild(option); // Добавляем опцию в <select>);
+        });
+        select = document.getElementById('nProfession');
+        professions.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item; // Значение опции
+            option.textContent = item; // Текст опции
+            select.appendChild(option); // Добавляем опцию в <select>);
+        });
+        select = document.getElementById('nBanned');
+        ban.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item; // Значение опции
+            option.textContent = item; // Текст опции
+            select.appendChild(option); // Добавляем опцию в <select>);
+        });
+    })();
+
+    document.getElementById('createAccountBtn').addEventListener('click', () => {
+        document.getElementById('createForm').className = 'w-50 p-3 border';
+        document.getElementById('createAccountBtn').className = 'hidden';
+    });
+
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+        let res='';
+        let newPlayer = {
+            name: null,
+            title: null,
+            race: null,
+            profession: null,
+            level: null,
+            birthday: null,
+            banned: null
+        };
+        const name = document.getElementById('nName').value;
+        if (name.length < 1 || name.length > 12) {
+            res += 'Name: текст, от 1 до 12 символов\n'
+        }
+        const title = document.getElementById('nTitle').value;
+        if (title.length < 1 || title.length > 200) {
+            res += 'Title: текст, от 1 до 200 символов\n'
+        }
+        const race = document.getElementById('nRace').value;
+        const profession = document.getElementById('nProfession').value;
+        const level = parseInt(document.getElementById('nLevel').value,10);
+        if (level < 0 || level > 100) {
+            res += 'Level: число от 0 до 100\n'
+        }
+        const birthday = Date.parse(document.getElementById('nBirthday').value);
+        if (birthday.toString() === 'NaN' || birthday > new Date()) {
+            res += 'Birthday: Укажите корректную дату\n'
+        }
+        const banned = document.getElementById('nBanned').value;
+        if (res.length !== 0) {
+            alert(res);
+        } else {
+            newPlayer.name = name;
+            newPlayer.title = title;
+            newPlayer.profession = profession;
+            newPlayer.race = race;
+            newPlayer.level = level;
+            newPlayer.birthday = birthday;
+            newPlayer.banned = banned;
+            try {
+                await $j.ajax({
+                    url: '/rest/players',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(newPlayer),
+                    success: function(response) {
+                        console.log('Изменения сохранены:', response);
+                    },
+                    error: function(error) {
+                        console.error('Ошибка при сохранении:', error);
+                    }
+                });
+                const accountsCount = await getPlayersCount();
+                const select = document.getElementById('pages');
+                const rowsCount = parseInt(select.value, 10);
+                countingPages(accountsCount, rowsCount, parseInt(currentBtn.textContent, 10));
+                getAndFillDataForTable(parseInt(currentBtn.textContent, 10)-1);
+                document.getElementById('nName').value = '';
+                document.getElementById('nTitle').value = '';
+                document.getElementById('nRace').value = races[0];
+                document.getElementById('nProfession').value = professions[0];
+                document.getElementById('nLevel').value = '0';
+                document.getElementById('nBirthday').value = '';
+                document.getElementById('nBanned').value = ban[0];
+                document.getElementById('createForm').className = 'hidden';
+                document.getElementById('createAccountBtn').className = 'btn btn-outline-primary';
+                alert('Игрок добавлен');
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert(error);
+            }
+        }
+
+    });
+
+
+</script>
+<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+        integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+        crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js"
+        integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
+        crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/js/bootstrap.min.js"
+        integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+        crossorigin="anonymous"></script>
 </body>
 </html>
